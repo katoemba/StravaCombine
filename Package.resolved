@@ -1,0 +1,16 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "Mocker",
+        "repositoryURL": "https://github.com/WeTransfer/Mocker.git",
+        "state": {
+          "branch": null,
+          "revision": "2128c4224ac5e9d2a32d485f8bd230a3e559be86",
+          "version": "2.3.0"
+        }
+      }
+    ]
+  },
+  "version": 1
+}
