@@ -28,7 +28,7 @@ public struct Athlete: Codable {
 }
 
 public class StravaOAuth: NSObject {
-    private var presentationAnchor: UIWindow
+    private var presentationAnchor: ASPresentationAnchor
     private var lastKnownToken: StravaToken?
     private var cancellables = Set<AnyCancellable>()
     public var token: AnyPublisher<StravaToken, Error> {
@@ -47,7 +47,7 @@ public class StravaOAuth: NSObject {
     }
     private var config: StravaConfig
 
-    public init(config: StravaConfig, tokenInfo: StravaToken? = nil, presentationAnchor: UIWindow) {
+    public init(config: StravaConfig, tokenInfo: StravaToken? = nil, presentationAnchor: ASPresentationAnchor) {
         self.config = config
         self.lastKnownToken = tokenInfo
         self.presentationAnchor = presentationAnchor
