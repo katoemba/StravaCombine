@@ -27,7 +27,7 @@ public struct Athlete: Codable {
     public let profile: String
 }
 
-public class StravaOAuth: NSObject {
+public class StravaOAuth : NSObject {
     private var presentationAnchor: ASPresentationAnchor
     private var lastKnownToken: StravaToken?
     private var cancellables = Set<AnyCancellable>()
@@ -46,11 +46,27 @@ public class StravaOAuth: NSObject {
         }
     }
     private var config: StravaConfig
+    // Factory to support mocking ASWebAuthenticationSession
+    public typealias AuthenticationFactory = (URL, String?, @escaping ASWebAuthenticationSession.CompletionHandler) -> (ASWebAuthenticationSession)
+    private var authenticationFactory: AuthenticationFactory
 
-    public init(config: StravaConfig, tokenInfo: StravaToken? = nil, presentationAnchor: ASPresentationAnchor) {
+    public init(config: StravaConfig,
+                tokenInfo: StravaToken? = nil,
+                presentationAnchor: ASPresentationAnchor,
+                authenticationSessionFactory: AuthenticationFactory? = nil) {
         self.config = config
         self.lastKnownToken = tokenInfo
         self.presentationAnchor = presentationAnchor
+        
+        if let authenticationSessionFactory = authenticationSessionFactory {
+            self.authenticationFactory = authenticationSessionFactory
+        }
+        else {
+            self.authenticationFactory = { url, callbackURLScheme, completionHandler in
+                return ASWebAuthenticationSession(url: url, callbackURLScheme: callbackURLScheme, completionHandler: completionHandler)
+            }
+        }
+
         super.init()
     }
     
@@ -75,9 +91,9 @@ public class StravaOAuth: NSObject {
         //            UIApplication.shared.open(appOAuthUrlstravaScheme, options: [:])
         //        }
         
-        let session = ASWebAuthenticationSession(url: components.url!, callbackURLScheme: config.redirect_uri) { callbackURL, error in
+        let session = authenticationFactory(components.url!, config.redirect_uri) { callbackURL, error in
             guard error == nil else {
-                subject.send(completion: .failure(error!))
+                subject.send(completion: .failure(StravaCombineError.authorizationCancelled))
                 return
             }
             guard let callbackURL = callbackURL else {

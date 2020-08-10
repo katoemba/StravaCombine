@@ -3,7 +3,7 @@ import Mocker
 import Combine
 @testable import StravaCombine
 
-final class StravaCombineTests: XCTestCase {
+final class StravaUploadTests: XCTestCase {
     private var cancellable: AnyCancellable?
     
     /// Test the upload of a file to Strava, and check that the upload is completed
@@ -76,7 +76,7 @@ final class StravaCombineTests: XCTestCase {
         /// Verify that upload is called, that progress is called a number of times, and that the same number of times that status is passed to the subscriber.
         wait(for: [uploadPostExpectation, uploadGetProgressExpectation, publishUploadStatusExpectation], timeout: 10.0, enforceOrder: true)
 
-        // Remove the mocks
+        // Remove the mocks and now expect that upload and activity id are fulfilled
         Mocker.removeAll()
         publishUploadStatusFinishedExpectation.isInverted = false
         uploadActivityIdPresentExpectation.isInverted = false
@@ -93,8 +93,4 @@ final class StravaCombineTests: XCTestCase {
         
         wait(for: [uploadFinalGetProgressExpectation, uploadActivityIdPresentExpectation, publishUploadStatusFinishedExpectation], timeout: 2.0, enforceOrder: true)
     }
-
-//    static var allTests = [
-//        ("testExample", testExample),
-//    ]
 }

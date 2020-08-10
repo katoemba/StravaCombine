@@ -47,6 +47,17 @@ public final class MockedData {
         }
         """.data(using: .utf8)!
     }
+    
+    public static func refreshToken(accessToken: String, refreshToken: String, expiresAt: Int64) -> Data {
+        """
+        {
+          "access_token" : "\(accessToken)",
+          "expires_at" : \(expiresAt),
+          "refresh_token" : "\(refreshToken)",
+          "athlete" : null
+        }
+        """.data(using: .utf8)!
+    }
 }
 
 internal extension URL {
