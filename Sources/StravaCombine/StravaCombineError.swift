@@ -12,7 +12,7 @@ public enum StravaCombineError: Error, Equatable {
     case authorizationDidNotReturnCallbackURL
     case authorizationDidNotReturnCode
     case invalidHTTPStatusCode(HTTPURLResponse)
-    case uploadFailed
+    case uploadFailed(String)
 }
 
 extension StravaCombineError: LocalizedError {
@@ -26,8 +26,8 @@ extension StravaCombineError: LocalizedError {
                 return "The authentication / authorization did not return a valid code."
             case let .invalidHTTPStatusCode(response):
                 return "An invalid status code \(response.statusCode) was returned."
-            case .uploadFailed:
-                return "The upload failed."
+            case let .uploadFailed(description):
+                return description
         }
     }
 }

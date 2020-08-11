@@ -17,6 +17,16 @@ public struct UploadStatus: Decodable {
 }
 
 public class StravaUpload {
+    struct ErrorMessage: Decodable {
+        let message: String
+        let errors: [ErrorDetails]
+    }
+    struct ErrorDetails: Decodable {
+        let resource: String
+        let field: String
+        let code: String
+    }
+
     private var config: StravaConfig
     private var cancellables = Set<AnyCancellable>()
     private let uploadStatusSubject = PassthroughSubject<UploadStatus, Error>()
@@ -30,6 +40,9 @@ public class StravaUpload {
         self.accessToken = accessToken
         uploadToStrava(gpxData, activityType: activityType, accessToken: accessToken)
             .sink(receiveCompletion: { (completion) in
+                if case .failure(_) = completion {
+                    self.uploadStatusSubject.send(completion: completion)
+                }
             }, receiveValue: { (uploadStatus) in
                 self.checkCompletion(uploadStatus.id)
             })
@@ -51,11 +64,14 @@ public class StravaUpload {
         
         var dataToAppend = gpxData
         var data_type = "gpx"
-        var filename = "workout.gpx"
+        
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        let filename = "workout_\(formatter.string(from: Date()).replacingOccurrences(of: " ", with: "_"))"
         if let gzippedData = gpxData.gzip() {
             dataToAppend = gzippedData
             data_type.append(".gz")
-            filename.append(".gz")
         }
         
         var data = Data()
@@ -94,13 +110,21 @@ public class StravaUpload {
                 return
             }
             
-            guard let responseData = responseData, let status = try? JSONDecoder().decode(UploadStatus.self, from: responseData) else {
-                subject.send(completion: .failure(StravaCombineError.uploadFailed))
-                return
+            if let responseData = responseData {
+                if let status = try? JSONDecoder().decode(UploadStatus.self, from: responseData) {
+                    subject.send(status)
+                    subject.send(completion: .finished)
+                }
+                else if let errorMessage = try? JSONDecoder().decode(ErrorMessage.self, from: responseData) {
+                    subject.send(completion: .failure(StravaCombineError.uploadFailed(errorMessage.message)))
+                }
+                else {
+                    subject.send(completion: .failure(StravaCombineError.uploadFailed("Couldn't process the Strava response")))
+                }
             }
-            
-            subject.send(status)
-            subject.send(completion: .finished)
+            else {
+                subject.send(completion: .failure(StravaCombineError.uploadFailed("Couldn't process the Strava response")))
+            }
         }
         task.resume()
     
@@ -125,18 +149,18 @@ public class StravaUpload {
 
                 print("\(String(decoding: data, as: UTF8.self))")
                 guard let uploadStatus = try? JSONDecoder().decode(UploadStatus.self, from: data) else {
-                    throw StravaCombineError.uploadFailed
+                    throw StravaCombineError.uploadFailed("Couldn't process the Strava response")
                 }
                 
                 return ((response as? HTTPURLResponse)!.statusCode, uploadStatus)
             })
             .sink(receiveCompletion: { (completion) in
-                if case .failure(_) = completion {
-                    self.uploadStatusSubject.send(completion: .failure(StravaCombineError.uploadFailed))
+                if case let .failure(error) = completion {
+                    self.uploadStatusSubject.send(completion: .failure(StravaCombineError.uploadFailed(error.localizedDescription)))
                 }
             }) { (responseCode, uploadStatus) in
                 guard uploadStatus.error == nil else {
-                    self.uploadStatusSubject.send(completion: .failure(StravaCombineError.uploadFailed))
+                    self.uploadStatusSubject.send(completion: .failure(StravaCombineError.uploadFailed(uploadStatus.error!)))
                     return
                 }
                 self.uploadStatusSubject.send(uploadStatus)
