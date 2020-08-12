@@ -6,7 +6,7 @@ import AuthenticationServices
 
 final class StravaOAuthTests: XCTestCase {
     private var cancellable: AnyCancellable?
-    let stravaConfig = StravaConfig(client_id: "client", client_secret: "secret")
+    let stravaConfig = StravaConfig(client_id: "client", client_secret: "secret", redirect_uri: "travaartje://www.travaartje.net")
 
     override class func setUp() {
     }
@@ -17,6 +17,8 @@ final class StravaOAuthTests: XCTestCase {
         let authenticationSessionFactory: StravaOAuth.AuthenticationFactory = { url, callbackURLScheme, completionHandler in
             let mock = ASWebAuthenticationSessionMock(url: url, callbackURLScheme: callbackURLScheme, completionHandler: completionHandler)
             mock.code = code
+
+	    XCTAssertEqual(callbackURLScheme ?? "", self.stravaConfig.redirect_uri)
             return mock
         }
 

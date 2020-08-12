@@ -5,6 +5,7 @@ import Combine
 
 final class StravaUploadTests: XCTestCase {
     private var cancellable: AnyCancellable?
+    let stravaConfig = StravaConfig(client_id: "client", client_secret: "secret", redirect_uri: "travaartje://www.travaartje.net")
     
     /// Test the upload of a file to Strava, and check that the upload is completed
     func testUpload() {
@@ -48,7 +49,7 @@ final class StravaUploadTests: XCTestCase {
         let publishUploadStatusFinishedExpectation = expectation(description: "The upload status publisher shall be marked finished")
         let uploadActivityIdPresentExpectation = expectation(description: "The activity id shall be present")
 
-        let stravaUpload = StravaUpload(StravaConfig(client_id: "client", client_secret: "secret"))
+        let stravaUpload = StravaUpload(stravaConfig)
         cancellable = stravaUpload.uploadGpx(Data(), activityType: .run, accessToken: accessToken)
             .sink(receiveCompletion: { (completion) in
                 switch completion {
@@ -136,7 +137,7 @@ final class StravaUploadTests: XCTestCase {
         publishUploadStatusExpectation.expectedFulfillmentCount = stravaInProgressCount
         let publishUploadStatusFailureExpectation = expectation(description: "The upload status publisher shall be marked as failed")
 
-        let stravaUpload = StravaUpload(StravaConfig(client_id: "client", client_secret: "secret"))
+        let stravaUpload = StravaUpload(stravaConfig)
         cancellable = stravaUpload.uploadGpx(Data(), activityType: .run, accessToken: accessToken)
             .sink(receiveCompletion: { (completion) in
                 switch completion {
@@ -213,7 +214,7 @@ final class StravaUploadTests: XCTestCase {
         publishUploadStatusExpectation.expectedFulfillmentCount = stravaInProgressCount
         let publishUploadStatusFailureExpectation = expectation(description: "The upload status publisher shall be marked as failed")
 
-        let stravaUpload = StravaUpload(StravaConfig(client_id: "client", client_secret: "secret"))
+        let stravaUpload = StravaUpload(stravaConfig)
         cancellable = stravaUpload.uploadGpx(Data(), activityType: .run, accessToken: accessToken)
             .sink(receiveCompletion: { (completion) in
                 switch completion {
@@ -271,7 +272,7 @@ final class StravaUploadTests: XCTestCase {
         let expectUploadStatus = false
         let publishUploadStatusFailureExpectation = expectation(description: "The upload status publisher shall be marked as failed")
 
-        let stravaUpload = StravaUpload(StravaConfig(client_id: "client", client_secret: "secret"))
+        let stravaUpload = StravaUpload(stravaConfig)
         cancellable = stravaUpload.uploadGpx(Data(), activityType: .run, accessToken: accessToken)
             .sink(receiveCompletion: { (completion) in
                 switch completion {

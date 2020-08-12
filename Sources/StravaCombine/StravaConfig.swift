@@ -12,7 +12,7 @@ public struct StravaConfig {
     public let host = "www.strava.com"
     public let authPath = "/oauth/mobile/authorize"
     public let apiPath = "/api/v3"
-    public let redirect_uri = "travaartje://www.travaartje.net"
+    public let redirect_uri: String
     public let scope = "read_all,activity:write"
     public let client_id: String
     public let client_secret: String
@@ -42,8 +42,9 @@ public struct StravaConfig {
         return URL(string: fullApiPath(endpoint))!
     }
 
-    public init(client_id: String, client_secret: String) {
+    public init(client_id: String, client_secret: String, redirect_uri: String) {
         self.client_id = client_id
         self.client_secret = client_secret
+	self.redirect_uri = redirect_uri
     }
 }
