@@ -14,6 +14,13 @@ public struct StravaToken: Codable {
     public let expires_at: TimeInterval
     public let refresh_token: String
     public var athlete: Athlete?
+    
+    public init(access_token: String, expires_at: TimeInterval, refresh_token: String, athlete: Athlete? = nil) {
+        self.access_token = access_token
+        self.expires_at = expires_at
+        self.refresh_token = refresh_token
+        self.athlete = athlete
+    }
 }
 
 public struct Athlete: Codable {
@@ -25,9 +32,25 @@ public struct Athlete: Codable {
     public let country: String
     public let profile_medium: String
     public let profile: String
+        
+    public init(id: Int32, username: String, firstname: String, lastname: String, city: String, country: String, profile_medium: String, profile: String) {
+        self.id = id
+        self.username = username
+        self.firstname = firstname
+        self.lastname = lastname
+        self.city = city
+        self.country = country
+        self.profile_medium = profile_medium
+        self.profile = profile
+    }
 }
 
-public class StravaOAuth : NSObject {
+public protocol StravaOAuthProtocol {
+    var token: AnyPublisher<StravaToken, Error> { get }
+    func deauthorize()
+}
+
+public class StravaOAuth : NSObject, StravaOAuthProtocol {
     private var presentationAnchor: ASPresentationAnchor
     private var lastKnownToken: StravaToken?
     private var cancellables = Set<AnyCancellable>()
@@ -150,7 +173,7 @@ public class StravaOAuth : NSObject {
             .eraseToAnyPublisher()
     }
     
-    func deauthorize() {
+    public func deauthorize() {
         
     }
 }

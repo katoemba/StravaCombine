@@ -14,9 +14,21 @@ public struct UploadStatus: Decodable {
     public let status: String
     public let error: String?
     public let activity_id: Int64?
+
+    public init(id: Int64, external_id: String? = nil, status: String, error: String? = nil, activity_id: Int64? = nil) {
+        self.id = id
+        self.external_id = external_id
+        self.status = status
+        self.error = error
+        self.activity_id = activity_id
+    }
 }
 
-public class StravaUpload {
+public protocol StravaUploadProtocol {
+    func uploadGpx(_ gpxData: Data, activityType: StravaActivityType, accessToken: String) -> AnyPublisher<UploadStatus, Error>
+}
+
+public class StravaUpload: StravaUploadProtocol {
     struct ErrorMessage: Decodable {
         let message: String
         let errors: [ErrorDetails]
