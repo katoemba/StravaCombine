@@ -9,9 +9,9 @@ final class StravaUploadTests: XCTestCase {
     
     /// Test the upload of a file to Strava, and check that the upload is completed
     func testUpload() {
-        var uploadId = Int64(1000)
+        var uploadId = 1000
         let accessToken = "512352345245345346346346"
-        let activityId = Int64(19001)
+        let activityId = 19001
         let inProgressStatus = "Your activity is still being processed."
         let completionStatus = "Your activity is ready."
 
@@ -97,7 +97,7 @@ final class StravaUploadTests: XCTestCase {
     }
     
     func testDuplicateUpload() {
-        let uploadId = Int64(1000)
+        let uploadId = 1000
         let accessToken = "512352345245345346346346"
         let inProgressStatus = "Your activity is still being processed."
         let completionStatus = "There was an error processing your activity."
@@ -174,7 +174,7 @@ final class StravaUploadTests: XCTestCase {
     }
 
     func testUploadFailure() {
-        let uploadId = Int64(1000)
+        let uploadId = 1000
         let accessToken = "512352345245345346346346"
         let inProgressStatus = "Your activity is still being processed."
         let completionStatus = "There was an error processing your activity."

@@ -9,13 +9,13 @@ import Foundation
 import Combine
 
 public struct UploadStatus: Decodable {
-    public let id: Int64
+    public let id: Int
     public let external_id: String?
     public let status: String
     public let error: String?
-    public let activity_id: Int64?
+    public let activity_id: Int?
 
-    public init(id: Int64, external_id: String? = nil, status: String, error: String? = nil, activity_id: Int64? = nil) {
+    public init(id: Int, external_id: String? = nil, status: String, error: String? = nil, activity_id: Int? = nil) {
         self.id = id
         self.external_id = external_id
         self.status = status
@@ -143,7 +143,7 @@ public class StravaUpload: StravaUploadProtocol {
         return subject.eraseToAnyPublisher()
     }
     
-    private func checkCompletion(_ uploadId: Int64) {
+    private func checkCompletion(_ uploadId: Int) {
         print("\(Date()) checkCompletion")
 
         let request = URLRequest(url: config.fullApiPath("/uploads/\(uploadId)"),

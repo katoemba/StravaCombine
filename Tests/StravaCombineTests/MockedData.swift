@@ -9,7 +9,7 @@ import Foundation
 
 // This doesn't work with SPM yet
 public final class MockedData {
-    public static func uploadProgressJSON(id: Int64, status: String) -> Data {
+    public static func uploadProgressJSON(id: Int, status: String) -> Data {
         """
         {
           "id_str" : "\(id)",
@@ -22,7 +22,7 @@ public final class MockedData {
         """.data(using: .utf8)!
     }
 
-    public static func uploadCompletedJSON(id: Int64, activityId: Int64, status: String) -> Data {
+    public static func uploadCompletedJSON(id: Int, activityId: Int, status: String) -> Data {
         """
         {
           "id_str" : "\(id)",
@@ -35,7 +35,7 @@ public final class MockedData {
         """.data(using: .utf8)!
     }
 
-    public static func uploadErrorJSON(id: Int64, status: String, error: String) -> Data {
+    public static func uploadErrorJSON(id: Int, status: String, error: String) -> Data {
         """
         {
           "id_str" : "\(id)",
@@ -63,13 +63,21 @@ public final class MockedData {
         """.data(using: .utf8)!
     }
 
-    public static func refreshToken(accessToken: String, refreshToken: String, expiresAt: Int64) -> Data {
+    public static func refreshToken(accessToken: String, refreshToken: String, expiresAt: Int) -> Data {
         """
         {
           "access_token" : "\(accessToken)",
           "expires_at" : \(expiresAt),
           "refresh_token" : "\(refreshToken)",
           "athlete" : null
+        }
+        """.data(using: .utf8)!
+    }
+
+    public static func deauthorize(accessToken: String) -> Data {
+        """
+        {
+          "access_token" : "\(accessToken)"
         }
         """.data(using: .utf8)!
     }
