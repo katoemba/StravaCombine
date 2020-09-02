@@ -24,8 +24,26 @@ public struct UploadStatus: Decodable {
     }
 }
 
+public struct UploadParameters {
+    public let activityType: StravaActivityType
+    public let name: String?
+    public let description: String?
+    public let commute: Bool
+    public let trainer: Bool
+    public let `private`: Bool
+
+    public  init(activityType: StravaActivityType, name: String? = nil, description: String? = nil, commute: Bool = false, trainer: Bool = false, private: Bool = false) {
+        self.activityType = activityType
+        self.name = name
+        self.description = description
+        self.commute = commute
+        self.trainer = trainer
+        self.private = `private`
+    }
+}
+
 public protocol StravaUploadProtocol {
-    func uploadGpx(_ gpxData: Data, activityType: StravaActivityType, accessToken: String) -> AnyPublisher<UploadStatus, Error>
+    func uploadGpx(_ gpxData: Data, uploadParameters: UploadParameters, accessToken: String) -> AnyPublisher<UploadStatus, Error>
 }
 
 public class StravaUpload: StravaUploadProtocol {
@@ -48,9 +66,9 @@ public class StravaUpload: StravaUploadProtocol {
         self.config = config
     }
     
-    public func uploadGpx(_ gpxData: Data, activityType: StravaActivityType, accessToken: String) -> AnyPublisher<UploadStatus, Error> {
+    public func uploadGpx(_ gpxData: Data, uploadParameters: UploadParameters, accessToken: String) -> AnyPublisher<UploadStatus, Error> {
         self.accessToken = accessToken
-        uploadToStrava(gpxData, activityType: activityType, accessToken: accessToken)
+        uploadToStrava(gpxData, uploadParameters: uploadParameters, accessToken: accessToken)
             .sink(receiveCompletion: { (completion) in
                 if case .failure(_) = completion {
                     self.uploadStatusSubject.send(completion: completion)
@@ -63,7 +81,7 @@ public class StravaUpload: StravaUploadProtocol {
         return uploadStatusSubject.eraseToAnyPublisher()
     }
 
-    private func uploadToStrava(_ gpxData: Data, activityType: StravaActivityType, accessToken: String) -> AnyPublisher<UploadStatus, Error> {
+    private func uploadToStrava(_ gpxData: Data, uploadParameters: UploadParameters, accessToken: String) -> AnyPublisher<UploadStatus, Error> {
         let subject = PassthroughSubject<UploadStatus, Error>()
         let boundary = UUID().uuidString
 
@@ -93,15 +111,33 @@ public class StravaUpload: StravaUploadProtocol {
 
         data.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
         data.append("Content-Disposition: form-data; name=\"activity_type\"\r\n\r\n".data(using: .utf8)!)
-        data.append("\(activityType.rawValue)".data(using: .utf8)!)
+        data.append("\(uploadParameters.activityType.rawValue)".data(using: .utf8)!)
 
         data.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
         data.append("Content-Disposition: form-data; name=\"private\"\r\n\r\n".data(using: .utf8)!)
-        data.append("0".data(using: .utf8)!)
+        data.append("\(uploadParameters.private ? 1 : 0)".data(using: .utf8)!)
 
+        if let name = uploadParameters.name {
+            data.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
+            data.append("Content-Disposition: form-data; name=\"name\"\r\n\r\n".data(using: .utf8)!)
+            data.append(name.data(using: .utf8)!)
+        }
+
+        if let description = uploadParameters.description {
+            data.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
+            data.append("Content-Disposition: form-data; name=\"description\"\r\n\r\n".data(using: .utf8)!)
+            data.append(description.data(using: .utf8)!)
+        }
+
+        if uploadParameters.trainer {
+            data.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
+            data.append("Content-Disposition: form-data; name=\"commute\"\r\n\r\n".data(using: .utf8)!)
+            data.append("1".data(using: .utf8)!)
+        }
+        
         data.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
         data.append("Content-Disposition: form-data; name=\"commute\"\r\n\r\n".data(using: .utf8)!)
-        data.append("0".data(using: .utf8)!)
+        data.append("\(uploadParameters.commute ? 1 : 0)".data(using: .utf8)!)
 
         data.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
         data.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
