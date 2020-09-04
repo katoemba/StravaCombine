@@ -174,7 +174,6 @@ final class StravaOAuthTests: XCTestCase {
                                      presentationAnchor: ASPresentationAnchor())
 
         cancellable = stravaAuth.token
-        .print()
             .filter { $0!.access_token == newAccessToken }
             .sink(receiveCompletion: { (completion) in
             }) { (stravaToken) in

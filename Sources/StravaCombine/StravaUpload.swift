@@ -151,8 +151,6 @@ public class StravaUpload: StravaUploadProtocol {
         request.httpBody = data
 
         let task = URLSession.shared.uploadTask(with: request, from: data) { responseData, response, error in
-            print("\(Date()) upload to strava completed")
-
             guard error == nil else {
                 subject.send(completion: .failure(error!))
                 return
@@ -180,8 +178,6 @@ public class StravaUpload: StravaUploadProtocol {
     }
     
     private func checkCompletion(_ uploadId: Int) {
-        print("\(Date()) checkCompletion")
-
         let request = URLRequest(url: config.fullApiPath("/uploads/\(uploadId)"),
                                  method: "GET",
                                  headers: ["Content-Type": "application/json",
@@ -195,7 +191,6 @@ public class StravaUpload: StravaUploadProtocol {
                     throw StravaCombineError.invalidHTTPStatusCode(response)
                 }
 
-                print("\(String(decoding: data, as: UTF8.self))")
                 guard let uploadStatus = try? JSONDecoder().decode(UploadStatus.self, from: data) else {
                     throw StravaCombineError.uploadFailed("Couldn't process the Strava response")
                 }

@@ -183,7 +183,6 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
         
         let refreshTokenResult: AnyPublisher<StravaToken, Error> = URLSession.shared.dataTaskPublisher(for: request)
         refreshTokenResult.tryMap { StravaToken(access_token: $0.access_token, expires_at: $0.expires_at, refresh_token: $0.refresh_token, athlete: originalToken.athlete) }
-            .print()
             .sink(receiveCompletion: { (completion) in
                 switch completion {
                 case .finished:

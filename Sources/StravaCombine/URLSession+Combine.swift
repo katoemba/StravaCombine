@@ -23,7 +23,6 @@ extension URLSession {
                     (200..<300).contains(response.statusCode) == false {
                     throw SessionError.statusCode(response)
                 }
-                print("response.statusCode = \((response as? HTTPURLResponse)!.statusCode)")
 
                 return data
             })
@@ -41,7 +40,6 @@ extension URLSession {
                     (200..<300).contains(response.statusCode) == false {
                     throw StravaCombineError.invalidHTTPStatusCode(response)
                 }
-                print("response.statusCode = \((response as? HTTPURLResponse)!.statusCode)")
 
                 return data
             })
