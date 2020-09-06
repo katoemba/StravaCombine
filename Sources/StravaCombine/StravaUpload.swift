@@ -42,8 +42,13 @@ public struct UploadParameters {
     }
 }
 
+public enum DataType: String {
+    case gpx
+    case tcx
+}
+
 public protocol StravaUploadProtocol {
-    func uploadGpx(_ gpxData: Data, uploadParameters: UploadParameters, accessToken: String) -> AnyPublisher<UploadStatus, Error>
+    func uploadData(data: Data, dataType: DataType, uploadParameters: UploadParameters, accessToken: String) -> AnyPublisher<UploadStatus, Error>
 }
 
 public class StravaUpload: StravaUploadProtocol {
@@ -66,9 +71,9 @@ public class StravaUpload: StravaUploadProtocol {
         self.config = config
     }
     
-    public func uploadGpx(_ gpxData: Data, uploadParameters: UploadParameters, accessToken: String) -> AnyPublisher<UploadStatus, Error> {
+    public func uploadData(data: Data, dataType: DataType, uploadParameters: UploadParameters, accessToken: String) -> AnyPublisher<UploadStatus, Error> {
         self.accessToken = accessToken
-        uploadToStrava(gpxData, uploadParameters: uploadParameters, accessToken: accessToken)
+        uploadToStrava(data: data, dataType: dataType, uploadParameters: uploadParameters, accessToken: accessToken)
             .sink(receiveCompletion: { (completion) in
                 if case .failure(_) = completion {
                     self.uploadStatusSubject.send(completion: completion)
@@ -81,7 +86,7 @@ public class StravaUpload: StravaUploadProtocol {
         return uploadStatusSubject.eraseToAnyPublisher()
     }
 
-    private func uploadToStrava(_ gpxData: Data, uploadParameters: UploadParameters, accessToken: String) -> AnyPublisher<UploadStatus, Error> {
+    private func uploadToStrava(data: Data, dataType: DataType, uploadParameters: UploadParameters, accessToken: String) -> AnyPublisher<UploadStatus, Error> {
         let subject = PassthroughSubject<UploadStatus, Error>()
         let boundary = UUID().uuidString
 
@@ -92,14 +97,14 @@ public class StravaUpload: StravaUploadProtocol {
                                            "Authorization": "Bearer \(accessToken)"],
                                  parameters: [:])
         
-        var dataToAppend = gpxData
-        var data_type = "gpx"
+        var dataToAppend = data
+        var data_type = dataType.rawValue
         
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         formatter.timeStyle = .short
         let filename = "workout_\(formatter.string(from: Date()).replacingOccurrences(of: " ", with: "_"))"
-        if let gzippedData = gpxData.gzip() {
+        if let gzippedData = data.gzip() {
             dataToAppend = gzippedData
             data_type.append(".gz")
         }
