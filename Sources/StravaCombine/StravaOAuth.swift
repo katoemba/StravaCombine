@@ -51,6 +51,7 @@ public struct Athlete: Codable, Equatable {
 
 public protocol StravaOAuthProtocol {
     var token: AnyPublisher<StravaToken?, Never> { get }
+    func refreshTokenIfNeeded()
     func authorize()
     func deauthorize()
 }
@@ -85,7 +86,11 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
         tokenSubject = CurrentValueSubject<StravaToken?, Never>(tokenInfo)
         super.init()
 
-        if let tokenInfo = tokenInfo, Date(timeIntervalSince1970: tokenInfo.expires_at) <= Date() {
+        refreshTokenIfNeeded()
+    }
+    
+    public func refreshTokenIfNeeded() {
+        if let tokenInfo = tokenSubject.value, Date(timeIntervalSince1970: tokenInfo.expires_at) <= Date() {
             self.requestRefreshToken(tokenInfo)
         }
     }
