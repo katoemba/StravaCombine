@@ -5,7 +5,7 @@ import AuthenticationServices
 @testable import StravaCombine
 
 final class StravaOAuthTests: XCTestCase {
-    private var cancellable: AnyCancellable?
+    private var cancellables = Set<AnyCancellable>()
     let stravaConfig = StravaConfig(client_id: "client", client_secret: "secret", redirect_uri: "travaartje://www.travaartje.net")
 
     override class func setUp() {
@@ -32,6 +32,7 @@ final class StravaOAuthTests: XCTestCase {
 
         let publishTokenExpection = expectation(description: "The current access token is returned")
         let tokenMockExpectation = expectation(description: "The oauth/token mock should be called")
+        let authorizeFinishedExpectation = expectation(description: "The authorization request is finished")
 
         let tokenEndpoint = URL(string: "https://www.strava.com/api/v3/oauth/token")!
         var tokenMock = Mock(url: tokenEndpoint, dataType: .json, statusCode: 200, data: [.post: MockedData.refreshToken(accessToken: newAccessToken, refreshToken: newRefreshToken, expiresAt: newExpiresAt)])
@@ -54,7 +55,7 @@ final class StravaOAuthTests: XCTestCase {
         }
         tokenMock.register()
 
-        cancellable = stravaAuth.token
+        stravaAuth.token
             .filter { $0 != nil }
             .sink(receiveCompletion: { (completion) in
             }) { (stravaToken) in
@@ -64,9 +65,18 @@ final class StravaOAuthTests: XCTestCase {
                 XCTAssertEqual(stravaToken!.expires_at, Double(newExpiresAt))
                 publishTokenExpection.fulfill()
             }
+            .store(in: &cancellables)
         
         stravaAuth.authorize()
-        wait(for: [tokenMockExpectation, publishTokenExpection], timeout: 2.0, enforceOrder: true)
+            .sink(receiveCompletion: { (result) in
+                if result == .finished {
+                    authorizeFinishedExpectation.fulfill()
+                }
+            }) { (token) in
+            }
+        .store(in: &cancellables)
+
+        wait(for: [tokenMockExpectation, publishTokenExpection, authorizeFinishedExpectation], timeout: 2.0, enforceOrder: true)
     }
 
     /// Test token retrieval is cancelled
@@ -94,6 +104,7 @@ final class StravaOAuthTests: XCTestCase {
         publishTokenExpection.expectedFulfillmentCount = 2
         let tokenMockExpectation = expectation(description: "The oauth/token mock should be called")
         tokenMockExpectation.isInverted = true
+        let authorizeErrorExpectation = expectation(description: "The authorization should fail")
 
         let tokenEndpoint = URL(string: "https://www.strava.com/api/v3/oauth/token")!
         var tokenMock = Mock(url: tokenEndpoint, dataType: .json, statusCode: 200, data: [.post: MockedData.refreshToken(accessToken: newAccessToken, refreshToken: newRefreshToken, expiresAt: newExpiresAt)])
@@ -104,7 +115,7 @@ final class StravaOAuthTests: XCTestCase {
         }
         tokenMock.register()
 
-        cancellable = stravaAuth.token
+        stravaAuth.token
             .sink(receiveCompletion: { (completion) in
                 if case .failure(_) = completion {
                     cancelErrorExpectation.fulfill()
@@ -112,9 +123,18 @@ final class StravaOAuthTests: XCTestCase {
             }) { (stravaToken) in
                 publishTokenExpection.fulfill()
             }
+            .store(in: &cancellables)
         
         stravaAuth.authorize()
-        wait(for: [cancelErrorExpectation, publishTokenExpection, tokenMockExpectation], timeout: 1.0)
+            .sink(receiveCompletion: { (result) in
+                if case .failure(_) = result {
+                    authorizeErrorExpectation.fulfill()
+                }
+            }) { (token) in
+            }
+            .store(in: &cancellables)
+
+        wait(for: [cancelErrorExpectation, publishTokenExpection, tokenMockExpectation, authorizeErrorExpectation], timeout: 1.0)
     }
 
 
@@ -127,13 +147,14 @@ final class StravaOAuthTests: XCTestCase {
 
         let publishTokenExpection = expectation(description: "The current access token is returned")
 
-        cancellable = stravaAuth.token
+        stravaAuth.token
             .sink(receiveCompletion: { (completion) in
             }) { (stravaToken) in
                 XCTAssertNotNil(stravaToken)
                 XCTAssertEqual(stravaToken!.access_token, storedToken.access_token)
                 publishTokenExpection.fulfill()
             }
+            .store(in: &cancellables)
         
         wait(for: [publishTokenExpection], timeout: 2.0)
     }
@@ -173,7 +194,7 @@ final class StravaOAuthTests: XCTestCase {
                                      tokenInfo: storedToken,
                                      presentationAnchor: ASPresentationAnchor())
 
-        cancellable = stravaAuth.token
+        stravaAuth.token
             .filter { $0!.access_token == newAccessToken }
             .sink(receiveCompletion: { (completion) in
             }) { (stravaToken) in
@@ -183,6 +204,7 @@ final class StravaOAuthTests: XCTestCase {
                 XCTAssertEqual(stravaToken!.expires_at, Double(newExpiresAt))
                 publishTokenExpection.fulfill()
             }
+            .store(in: &cancellables)
         
         wait(for: [tokenMockExpectation, publishTokenExpection], timeout: 2.0, enforceOrder: true)
     }
@@ -195,12 +217,13 @@ final class StravaOAuthTests: XCTestCase {
                                      presentationAnchor: ASPresentationAnchor())
         
         let publishTokenExpection = expectation(description: "The current access token is returned")
-        cancellable = stravaAuth.token
+        stravaAuth.token
             .filter { $0 != nil }
             .sink(receiveCompletion: { (completion) in
             }) { (stravaToken) in
                 publishTokenExpection.fulfill()
             }
+            .store(in: &cancellables)
         
         wait(for: [publishTokenExpection], timeout: 2.0, enforceOrder: true)
 
@@ -225,12 +248,14 @@ final class StravaOAuthTests: XCTestCase {
         }
         tokenMock.register()
 
-        cancellable = stravaAuth.token
+        stravaAuth.token
             .filter { $0 == nil }
             .sink(receiveCompletion: { (completion) in
             }) { (stravaToken) in
                 noTokenExpection.fulfill()
             }
+            .store(in: &cancellables)
+        
         stravaAuth.deauthorize()
         
         wait(for: [tokenMockExpectation, noTokenExpection], timeout: 2.0, enforceOrder: true)

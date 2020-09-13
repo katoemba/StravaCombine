@@ -8,9 +8,7 @@
 import Foundation
 
 public enum StravaCombineError: Error, Equatable {
-    case authorizationCancelled
-    case authorizationDidNotReturnCallbackURL
-    case authorizationDidNotReturnCode
+    case authorizationFailed(String, String)
     case invalidHTTPStatusCode(HTTPURLResponse)
     case uploadFailed(String)
 }
@@ -18,16 +16,12 @@ public enum StravaCombineError: Error, Equatable {
 extension StravaCombineError: LocalizedError {
     public var errorDescription: String? {
         switch self {
-        case .authorizationCancelled:
-            return "The authentication / authorization was cancelled."
-            case .authorizationDidNotReturnCallbackURL:
-                return "The authentication / authorization did not provide a callback url."
-            case .authorizationDidNotReturnCode:
-                return "The authentication / authorization did not return a valid code."
-            case let .invalidHTTPStatusCode(response):
-                return "An invalid status code \(response.statusCode) was returned."
-            case let .uploadFailed(description):
-                return description
+        case let .uploadFailed(description):
+            return description
+        case let .authorizationFailed(location, description):
+            return "The authorization failed: \(location) -- \(description)."
+        case let .invalidHTTPStatusCode(response):
+            return "An invalid status code \(response.statusCode) was returned."
         }
     }
 }

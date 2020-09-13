@@ -29,15 +29,15 @@ public struct StravaAccessToken: Codable {
 
 public struct Athlete: Codable, Equatable {
     public let id: Int32
-    public let username: String
-    public let firstname: String
-    public let lastname: String
-    public let city: String
-    public let country: String
-    public let profile_medium: String
-    public let profile: String
+    public let username: String?
+    public let firstname: String?
+    public let lastname: String?
+    public let city: String?
+    public let country: String?
+    public let profile_medium: String?
+    public let profile: String?
         
-    public init(id: Int32, username: String, firstname: String, lastname: String, city: String, country: String, profile_medium: String, profile: String) {
+    public init(id: Int32, username: String?, firstname: String?, lastname: String?, city: String?, country: String?, profile_medium: String?, profile: String?) {
         self.id = id
         self.username = username
         self.firstname = firstname
@@ -52,7 +52,8 @@ public struct Athlete: Codable, Equatable {
 public protocol StravaOAuthProtocol {
     var token: AnyPublisher<StravaToken?, Never> { get }
     func refreshTokenIfNeeded()
-    func authorize()
+    func authorize() -> AnyPublisher<StravaToken?, StravaCombineError>
+    func processCode(_ code: String)
     func deauthorize()
 }
 
@@ -60,6 +61,7 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
     private var presentationAnchor: ASPresentationAnchor
     private var cancellables = Set<AnyCancellable>()
     private var tokenSubject: CurrentValueSubject<StravaToken?, Never>
+    private var authorizeSubject: PassthroughSubject<StravaToken?, StravaCombineError>?
     public var token: AnyPublisher<StravaToken?, Never> {
         tokenSubject.share().eraseToAnyPublisher()
     }
@@ -95,54 +97,75 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
         }
     }
     
-    public func authorize() {
-        var components = URLComponents()
-        components.scheme = config.scheme
-        components.host = config.host
-        components.path = config.authPath
-        components.queryItems = [
-            URLQueryItem(name: "client_id", value: config.client_id),
-            URLQueryItem(name: "redirect_uri", value: config.redirect_uri),
-            URLQueryItem(name: "scope", value: config.scope),
-            URLQueryItem(name: "state", value: "ios"),
-            URLQueryItem(name: "approval_prompt", value: "force"),
-            URLQueryItem(name: "response_type", value: "code"),
-        ]
-                
-        //        let appOAuthUrlstravaScheme = URL(string: "strava://oauth/mobile/authorize?client_id=21314&redirect_uri=travaartje://www.travaartje.net&scope=read_all,activity:write&state=ios&approval_prompt=force&response_type=code")!
-        //        if UIApplication.shared.canOpenURL(appOAuthUrlstravaScheme) {
-        //            UIApplication.shared.open(appOAuthUrlstravaScheme, options: [:])
-        //        }
-        
-        let session = authenticationFactory(components.url!, config.redirect_uri) { callbackURL, error in
-            guard error == nil else {
-                self.tokenSubject.send(nil)
-                return
-            }
-            guard let callbackURL = callbackURL else {
-                self.tokenSubject.send(nil)
-                return
-            }
-            guard let code = URLComponents(string: callbackURL.absoluteString)?.queryItems?.filter({$0.name == "code"}).first?.value else {
-                self.tokenSubject.send(nil)
-                return
-            }
-            
-            self.requestToken(code)
-                .sink(receiveCompletion: { (completion) in
-                    switch completion {
-                    case .finished:
-                        break
-                    case .failure(_):
-                        self.tokenSubject.send(nil)
-                    }
-                }) { (token) in
-                    self.tokenSubject.send(token)
+    public func authorize() -> AnyPublisher<StravaToken?, StravaCombineError> {
+        authorizeSubject = PassthroughSubject<StravaToken?, StravaCombineError>()
+                        
+//        let enableViaApp = false
+//        let processed_redirect_uri = config.redirect_uri.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed)!
+//        let appOAuthUrlStravaScheme = URL(string: "strava://oauth/mobile/authorize?client_id=\(config.client_id)&redirect_uri=\(processed_redirect_uri)&scope=read_all,activity:write&state=ios&approval_prompt=force&response_type=code")!
+//        if enableViaApp, UIApplication.shared.canOpenURL(appOAuthUrlStravaScheme)  {
+//            UIApplication.shared.open(appOAuthUrlStravaScheme, options: [:])
+//        }
+//        else {
+            var components = URLComponents()
+            components.scheme = config.scheme
+            components.host = config.host
+            components.path = config.authPath
+            components.queryItems = [
+                URLQueryItem(name: "client_id", value: config.client_id),
+                URLQueryItem(name: "redirect_uri", value: config.redirect_uri),
+                URLQueryItem(name: "scope", value: config.scope),
+                URLQueryItem(name: "state", value: "ios"),
+                URLQueryItem(name: "approval_prompt", value: "force"),
+                URLQueryItem(name: "response_type", value: "code"),
+            ]
+
+            let session = authenticationFactory(components.url!, config.redirect_uri) { callbackURL, error in
+                guard error == nil else {
+                    self.tokenSubject.send(nil)
+                    self.authorizeSubject?.send(completion: .failure(.authorizationFailed("StravaOAuth.authorize", error.debugDescription)))
+                    self.authorizeSubject = nil
+                    return
                 }
-                .store(in: &self.cancellables)
-        }
-        session.presentationContextProvider = self
-        session.start()
+                guard let callbackURL = callbackURL else {
+                    self.tokenSubject.send(nil)
+                    self.authorizeSubject?.send(completion: .failure(.authorizationFailed("StravaOAuth.authorize", "Missing callbackURL")))
+                    self.authorizeSubject = nil
+                    return
+                }
+                guard let code = URLComponents(string: callbackURL.absoluteString)?.queryItems?.filter({$0.name == "code"}).first?.value else {
+                    self.tokenSubject.send(nil)
+                    self.authorizeSubject?.send(completion: .failure(.authorizationFailed("StravaOAuth.authorize", "Invalid callbackURL: \(callbackURL.absoluteString)")))
+                    self.authorizeSubject = nil
+                    return
+                }
+                
+                self.processCode(code)
+            }
+            session.presentationContextProvider = self
+            session.start()
+//        }
+        
+        return authorizeSubject!.eraseToAnyPublisher()
+    }
+    
+    public func processCode(_ code: String) {
+        requestToken(code)
+            .sink(receiveCompletion: { (completion) in
+                switch completion {
+                case .finished:
+                    self.authorizeSubject?.send(completion: .finished)
+                    self.authorizeSubject = nil
+                case let .failure(error):
+                    self.tokenSubject.send(nil)
+                    self.authorizeSubject?.send(completion: .failure(.authorizationFailed("StravaOAuth.token", error.localizedDescription)))
+                    self.authorizeSubject = nil
+                }
+            }) { (token) in
+                self.tokenSubject.send(token)
+                self.authorizeSubject?.send(token)
+            }
+            .store(in: &self.cancellables)
     }
     
     public func deauthorize() {
@@ -155,6 +178,7 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
                                  parameters: ["access_token": accessToken])
         
         URLSession.shared.dataTaskPublisher(for: request)
+            .retry(1)
             .sink(receiveCompletion: { (_) in
             }, receiveValue: { (stravaAccessToken) in
                 self.tokenSubject.send(nil)
@@ -173,6 +197,7 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
                                               "grant_type": "authorization_code"])
         
         return URLSession.shared.dataTaskPublisher(for: request)
+            .retry(1)
             .eraseToAnyPublisher()
     }
     
@@ -188,6 +213,7 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
         
         let refreshTokenResult: AnyPublisher<StravaToken, Error> = URLSession.shared.dataTaskPublisher(for: request)
         refreshTokenResult.tryMap { StravaToken(access_token: $0.access_token, expires_at: $0.expires_at, refresh_token: $0.refresh_token, athlete: originalToken.athlete) }
+            .retry(1)
             .sink(receiveCompletion: { (completion) in
                 switch completion {
                 case .finished:
