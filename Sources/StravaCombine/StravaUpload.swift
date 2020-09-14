@@ -74,6 +74,7 @@ public class StravaUpload: StravaUploadProtocol {
     public func uploadData(data: Data, dataType: DataType, uploadParameters: UploadParameters, accessToken: String) -> AnyPublisher<UploadStatus, Error> {
         self.accessToken = accessToken
         uploadToStrava(data: data, dataType: dataType, uploadParameters: uploadParameters, accessToken: accessToken)
+            .retry(1)
             .sink(receiveCompletion: { (completion) in
                 if case .failure(_) = completion {
                     self.uploadStatusSubject.send(completion: completion)
