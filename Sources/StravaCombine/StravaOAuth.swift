@@ -69,11 +69,25 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
     // Factory to support mocking ASWebAuthenticationSession
     public typealias AuthenticationFactory = (URL, String?, @escaping ASWebAuthenticationSession.CompletionHandler) -> (ASWebAuthenticationSession)
     private var authenticationFactory: AuthenticationFactory
-
+    // Factory to support authorization via the Strava app. Opening the strava app must be done in this function using the provided URL.
+    // When control is returned to the app, it must call processCode with the provided code.
+    //
+    // This method must return false in case app based authorization is not possible, the authorization will then automatically revert to web-based authentication.
+    public typealias OpenAppFactory = (URL, StravaOAuthProtocol) -> (Bool)
+    private var openAppFactory: OpenAppFactory
+    
+    /// Initialize a Strava Authentication object
+    /// - Parameters:
+    ///   - config: the strava configuration, including secrets
+    ///   - tokenInfo: optional information about an existing token (which may be expired)
+    ///   - presentationAnchor: the anchor on which to present web-base authentication
+    ///   - authenticationSessionFactory: an optional factory for web-based authentication, only needs to be provided in case of test mocking
+    ///   - openAppFactory: an optional factory to do app-based authentication, if omitted web-based authorization will be used
     public init(config: StravaConfig,
                 tokenInfo: StravaToken?,
                 presentationAnchor: ASPresentationAnchor,
-                authenticationSessionFactory: AuthenticationFactory? = nil) {
+                authenticationSessionFactory: AuthenticationFactory? = nil,
+                openAppFactory: OpenAppFactory? = nil) {
         self.config = config
         self.presentationAnchor = presentationAnchor
         
@@ -85,28 +99,35 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
                 return ASWebAuthenticationSession(url: url, callbackURLScheme: callbackURLScheme, completionHandler: completionHandler)
             }
         }
+        if let openAppFactory = openAppFactory {
+            self.openAppFactory = openAppFactory
+        }
+        else {
+            self.openAppFactory = { (_, _) in
+                return false
+            }
+        }
+        
         tokenSubject = CurrentValueSubject<StravaToken?, Never>(tokenInfo)
         super.init()
 
         refreshTokenIfNeeded()
     }
     
+    /// Refresh the token if it is expired.
     public func refreshTokenIfNeeded() {
         if let tokenInfo = tokenSubject.value, Date(timeIntervalSince1970: tokenInfo.expires_at) <= Date() {
             self.requestRefreshToken(tokenInfo)
         }
     }
     
+    /// Trigger authorization for Strava, either via app or web.
     public func authorize() -> AnyPublisher<StravaToken?, StravaCombineError> {
         authorizeSubject = PassthroughSubject<StravaToken?, StravaCombineError>()
-                        
-//        let enableViaApp = false
-//        let processed_redirect_uri = config.redirect_uri.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed)!
-//        let appOAuthUrlStravaScheme = URL(string: "strava://oauth/mobile/authorize?client_id=\(config.client_id)&redirect_uri=\(processed_redirect_uri)&scope=read_all,activity:write&state=ios&approval_prompt=force&response_type=code")!
-//        if enableViaApp, UIApplication.shared.canOpenURL(appOAuthUrlStravaScheme)  {
-//            UIApplication.shared.open(appOAuthUrlStravaScheme, options: [:])
-//        }
-//        else {
+                 
+        let processed_redirect_uri = config.redirect_uri.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed)!
+        let appURL = URL(string: "strava://oauth/mobile/authorize?client_id=\(config.client_id)&redirect_uri=\(processed_redirect_uri)&scope=read_all,activity:write&state=ios&approval_prompt=force&response_type=code")!
+        if openAppFactory(appURL, self) == false {
             var components = URLComponents()
             components.scheme = config.scheme
             components.host = config.host
@@ -144,13 +165,15 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
             }
             session.presentationContextProvider = self
             session.start()
-//        }
+        }
         
         return authorizeSubject!.eraseToAnyPublisher()
     }
     
+    /// Process a code returned by the authorization code, by requesting a token for the code
     public func processCode(_ code: String) {
         requestToken(code)
+            .receive(on: RunLoop.main)
             .sink(receiveCompletion: { (completion) in
                 switch completion {
                 case .finished:
@@ -168,6 +191,7 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
             .store(in: &self.cancellables)
     }
     
+    /// Invalidate an existing token, effectively logging out the user
     public func deauthorize() {
         guard let accessToken = tokenSubject.value?.access_token else { return }
         
@@ -179,6 +203,7 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
         
         URLSession.shared.dataTaskPublisher(for: request)
             .retry(1)
+            .receive(on: RunLoop.main)
             .sink(receiveCompletion: { (_) in
             }, receiveValue: { (stravaAccessToken) in
                 self.tokenSubject.send(nil)
@@ -214,6 +239,7 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
         let refreshTokenResult: AnyPublisher<StravaToken, Error> = URLSession.shared.dataTaskPublisher(for: request)
         refreshTokenResult.tryMap { StravaToken(access_token: $0.access_token, expires_at: $0.expires_at, refresh_token: $0.refresh_token, athlete: originalToken.athlete) }
             .retry(1)
+            .receive(on: RunLoop.main)
             .sink(receiveCompletion: { (completion) in
                 switch completion {
                 case .finished:

@@ -11,14 +11,14 @@ final class StravaOAuthTests: XCTestCase {
     override class func setUp() {
     }
     
-    /// Test that a token is retrieved via authentication
-    func testGetToken() {
+    /// Test that a token is retrieved via web-authentication
+    func testWebGetToken() {
         let code = "01020304050607"
         let authenticationSessionFactory: StravaOAuth.AuthenticationFactory = { url, callbackURLScheme, completionHandler in
             let mock = ASWebAuthenticationSessionMock(url: url, callbackURLScheme: callbackURLScheme, completionHandler: completionHandler)
             mock.code = code
 
-	    XCTAssertEqual(callbackURLScheme ?? "", self.stravaConfig.redirect_uri)
+            XCTAssertEqual(callbackURLScheme ?? "", self.stravaConfig.redirect_uri)
             return mock
         }
 
@@ -26,6 +26,73 @@ final class StravaOAuthTests: XCTestCase {
                                      tokenInfo: nil,
                                      presentationAnchor: ASPresentationAnchor(),
                                      authenticationSessionFactory: authenticationSessionFactory)
+        let newAccessToken = "newaccesstoken"
+        let newRefreshToken = "newrefreshtoken"
+        let newExpiresAt = Int(Date(timeIntervalSinceNow: 6*3600).timeIntervalSince1970)
+
+        let publishTokenExpection = expectation(description: "The current access token is returned")
+        let tokenMockExpectation = expectation(description: "The oauth/token mock should be called")
+        let authorizeFinishedExpectation = expectation(description: "The authorization request is finished")
+
+        let tokenEndpoint = URL(string: "https://www.strava.com/api/v3/oauth/token")!
+        var tokenMock = Mock(url: tokenEndpoint, dataType: .json, statusCode: 200, data: [.post: MockedData.refreshToken(accessToken: newAccessToken, refreshToken: newRefreshToken, expiresAt: newExpiresAt)])
+        tokenMock.delay = DispatchTimeInterval.milliseconds(100)
+        tokenMock.onRequest = { request, postBodyArguments in
+            guard let parameters = postBodyArguments else {
+                XCTAssertNotNil(postBodyArguments)
+                return
+            }
+            
+            // Check that the token info is passed correctly
+            XCTAssertEqual(parameters["client_id"] as! String, self.stravaConfig.client_id)
+            XCTAssertEqual(parameters["client_secret"] as! String, self.stravaConfig.client_secret)
+            XCTAssertEqual(parameters["code"] as! String, code)
+            XCTAssertEqual(parameters["grant_type"] as! String, "authorization_code")
+        }
+        tokenMock.completion = {
+            // Confirm that the refresh token check was called
+            tokenMockExpectation.fulfill()
+        }
+        tokenMock.register()
+
+        stravaAuth.token
+            .filter { $0 != nil }
+            .sink(receiveCompletion: { (completion) in
+            }) { (stravaToken) in
+                XCTAssertNotNil(stravaToken)
+                XCTAssertEqual(stravaToken!.access_token, newAccessToken)
+                XCTAssertEqual(stravaToken!.refresh_token, newRefreshToken)
+                XCTAssertEqual(stravaToken!.expires_at, Double(newExpiresAt))
+                publishTokenExpection.fulfill()
+            }
+            .store(in: &cancellables)
+        
+        stravaAuth.authorize()
+            .sink(receiveCompletion: { (result) in
+                if result == .finished {
+                    authorizeFinishedExpectation.fulfill()
+                }
+            }) { (token) in
+            }
+        .store(in: &cancellables)
+
+        wait(for: [tokenMockExpectation, publishTokenExpection, authorizeFinishedExpectation], timeout: 2.0, enforceOrder: true)
+    }
+
+    /// Test that a token is retrieved via app-authentication
+    func testAppGetToken() {
+        let code = "01020304050607"
+        let openAppFactory: StravaOAuth.OpenAppFactory = { (url, stravaOAuth) -> Bool in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                stravaOAuth.processCode(code)
+            }
+            return true
+        }
+
+        let stravaAuth = StravaOAuth(config: stravaConfig,
+                                     tokenInfo: nil,
+                                     presentationAnchor: ASPresentationAnchor(),
+                                     openAppFactory: openAppFactory)
         let newAccessToken = "newaccesstoken"
         let newRefreshToken = "newrefreshtoken"
         let newExpiresAt = Int(Date(timeIntervalSinceNow: 6*3600).timeIntervalSince1970)
