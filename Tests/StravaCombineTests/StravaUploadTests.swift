@@ -108,11 +108,7 @@ final class StravaUploadTests: XCTestCase {
         let uploadPostEndpoint = URL(string: "https://www.strava.com/api/v3/uploads")!
         var uploadPostMock = Mock(url: uploadPostEndpoint, dataType: .json, statusCode: 200, data: [.post: MockedData.uploadProgressJSON(id: uploadId, status: inProgressStatus)])
         uploadPostMock.delay = DispatchTimeInterval.milliseconds(400)
-        uploadPostMock.onRequest = { request, postBodyArguments in
-            // Check that the access token is passed correctly
-            XCTAssertEqual(request.allHTTPHeaderFields?["Authorization"], "Bearer \(accessToken)")
-        }
-        uploadPostMock.completion = {
+         uploadPostMock.completion = {
             // Confirm that the upload was called
             uploadPostExpectation.fulfill()
         }

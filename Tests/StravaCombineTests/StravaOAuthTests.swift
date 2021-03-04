@@ -24,7 +24,6 @@ final class StravaOAuthTests: XCTestCase {
 
         let stravaAuth = StravaOAuth(config: stravaConfig,
                                      tokenInfo: nil,
-                                     presentationAnchor: ASPresentationAnchor(),
                                      authenticationSessionFactory: authenticationSessionFactory)
         let newAccessToken = "newaccesstoken"
         let newRefreshToken = "newrefreshtoken"
@@ -67,7 +66,7 @@ final class StravaOAuthTests: XCTestCase {
             }
             .store(in: &cancellables)
         
-        stravaAuth.authorize()
+        stravaAuth.authorize(presentationAnchor: ASPresentationAnchor())
             .sink(receiveCompletion: { (result) in
                 if result == .finished {
                     authorizeFinishedExpectation.fulfill()
@@ -91,7 +90,6 @@ final class StravaOAuthTests: XCTestCase {
 
         let stravaAuth = StravaOAuth(config: stravaConfig,
                                      tokenInfo: nil,
-                                     presentationAnchor: ASPresentationAnchor(),
                                      openAppFactory: openAppFactory)
         let newAccessToken = "newaccesstoken"
         let newRefreshToken = "newrefreshtoken"
@@ -134,7 +132,7 @@ final class StravaOAuthTests: XCTestCase {
             }
             .store(in: &cancellables)
         
-        stravaAuth.authorize()
+        stravaAuth.authorize(presentationAnchor: ASPresentationAnchor())
             .sink(receiveCompletion: { (result) in
                 if result == .finished {
                     authorizeFinishedExpectation.fulfill()
@@ -159,7 +157,6 @@ final class StravaOAuthTests: XCTestCase {
 
         let stravaAuth = StravaOAuth(config: stravaConfig,
                                      tokenInfo: nil,
-                                     presentationAnchor: ASPresentationAnchor(),
                                      authenticationSessionFactory: authenticationSessionFactory)
         let newAccessToken = "newaccesstoken"
         let newRefreshToken = "newrefreshtoken"
@@ -192,7 +189,7 @@ final class StravaOAuthTests: XCTestCase {
             }
             .store(in: &cancellables)
         
-        stravaAuth.authorize()
+        stravaAuth.authorize(presentationAnchor: ASPresentationAnchor())
             .sink(receiveCompletion: { (result) in
                 if case .failure(_) = result {
                     authorizeErrorExpectation.fulfill()
@@ -209,8 +206,7 @@ final class StravaOAuthTests: XCTestCase {
     func testValidToken() {
         let storedToken = StravaToken(access_token: "accesstoken", expires_at: Date(timeIntervalSinceNow: 600).timeIntervalSince1970, refresh_token: "refreshtoken", athlete: nil)
         let stravaAuth = StravaOAuth(config: stravaConfig,
-                                     tokenInfo: storedToken,
-                                     presentationAnchor: ASPresentationAnchor())
+                                     tokenInfo: storedToken)
 
         let publishTokenExpection = expectation(description: "The current access token is returned")
 
@@ -258,8 +254,7 @@ final class StravaOAuthTests: XCTestCase {
         tokenMock.register()
         
         let stravaAuth = StravaOAuth(config: stravaConfig,
-                                     tokenInfo: storedToken,
-                                     presentationAnchor: ASPresentationAnchor())
+                                     tokenInfo: storedToken)
 
         stravaAuth.token
             .filter { $0!.access_token == newAccessToken }
@@ -280,8 +275,7 @@ final class StravaOAuthTests: XCTestCase {
     func testDeauthorize() {
         let storedToken = StravaToken(access_token: "accesstoken", expires_at: Date(timeIntervalSinceNow: 600).timeIntervalSince1970, refresh_token: "refreshtoken", athlete: nil)
         let stravaAuth = StravaOAuth(config: stravaConfig,
-                                     tokenInfo: storedToken,
-                                     presentationAnchor: ASPresentationAnchor())
+                                     tokenInfo: storedToken)
         
         let publishTokenExpection = expectation(description: "The current access token is returned")
         stravaAuth.token

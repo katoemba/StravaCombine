@@ -52,13 +52,13 @@ public struct Athlete: Codable, Equatable {
 public protocol StravaOAuthProtocol {
     var token: AnyPublisher<StravaToken?, Never> { get }
     func refreshTokenIfNeeded()
-    func authorize() -> AnyPublisher<StravaToken?, StravaCombineError>
+    func authorize(presentationAnchor: ASPresentationAnchor) -> AnyPublisher<StravaToken?, StravaCombineError>
     func processCode(_ code: String)
     func deauthorize()
 }
 
 public class StravaOAuth : NSObject, StravaOAuthProtocol {
-    private var presentationAnchor: ASPresentationAnchor
+    private var presentationAnchor: ASPresentationAnchor?
     private var cancellables = Set<AnyCancellable>()
     private var tokenSubject: CurrentValueSubject<StravaToken?, Never>
     private var authorizeSubject: PassthroughSubject<StravaToken?, StravaCombineError>?
@@ -85,11 +85,9 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
     ///   - openAppFactory: an optional factory to do app-based authentication, if omitted web-based authorization will be used
     public init(config: StravaConfig,
                 tokenInfo: StravaToken?,
-                presentationAnchor: ASPresentationAnchor,
                 authenticationSessionFactory: AuthenticationFactory? = nil,
                 openAppFactory: OpenAppFactory? = nil) {
         self.config = config
-        self.presentationAnchor = presentationAnchor
         
         if let authenticationSessionFactory = authenticationSessionFactory {
             self.authenticationFactory = authenticationSessionFactory
@@ -122,7 +120,8 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
     }
     
     /// Trigger authorization for Strava, either via app or web.
-    public func authorize() -> AnyPublisher<StravaToken?, StravaCombineError> {
+    public func authorize(presentationAnchor: ASPresentationAnchor) -> AnyPublisher<StravaToken?, StravaCombineError> {
+        self.presentationAnchor = presentationAnchor
         authorizeSubject = PassthroughSubject<StravaToken?, StravaCombineError>()
                  
         let processed_redirect_uri = config.redirect_uri.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed)!
@@ -257,6 +256,6 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
 
 extension StravaOAuth: ASWebAuthenticationPresentationContextProviding {
     public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        return presentationAnchor
+        return presentationAnchor!
     }
 }
