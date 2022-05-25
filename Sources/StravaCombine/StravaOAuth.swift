@@ -67,7 +67,7 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
     }
     private var config: StravaConfig
     // Factory to support mocking ASWebAuthenticationSession
-    public typealias AuthenticationFactory = (URL, String?, @escaping ASWebAuthenticationSession.CompletionHandler) -> (ASWebAuthenticationSession)
+    public typealias AuthenticationFactory = (URL, String?, String?, @escaping ASWebAuthenticationSession.CompletionHandler) -> (ASWebAuthenticationSession)
     private var authenticationFactory: AuthenticationFactory
     // Factory to support authorization via the Strava app. Opening the strava app must be done in this function using the provided URL.
     // When control is returned to the app, it must call processCode with the provided code.
@@ -93,8 +93,8 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
             self.authenticationFactory = authenticationSessionFactory
         }
         else {
-            self.authenticationFactory = { url, callbackURLScheme, completionHandler in
-                return ASWebAuthenticationSession(url: url, callbackURLScheme: callbackURLScheme, completionHandler: completionHandler)
+            self.authenticationFactory = { url, callbackURLScheme, appNameScheme, completionHandler in
+                return ASWebAuthenticationSession(url: url, callbackURLScheme: appNameScheme, completionHandler: completionHandler)
             }
         }
         if let openAppFactory = openAppFactory {
@@ -140,7 +140,7 @@ public class StravaOAuth : NSObject, StravaOAuthProtocol {
                 URLQueryItem(name: "response_type", value: "code"),
             ]
 
-            let session = authenticationFactory(components.url!, config.redirect_uri) { callbackURL, error in
+            let session = authenticationFactory(components.url!, config.redirect_uri, config.redirect_schema_name) { callbackURL, error in
                 guard error == nil else {
                     self.tokenSubject.send(nil)
                     self.authorizeSubject?.send(completion: .failure(.authorizationFailed("StravaOAuth.authorize", error.debugDescription)))
