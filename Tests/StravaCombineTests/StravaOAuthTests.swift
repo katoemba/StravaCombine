@@ -148,7 +148,7 @@ final class StravaOAuthTests: XCTestCase {
     func testCancelGetToken() {
         let code = "01020304050607"
         let error = ASWebAuthenticationSessionError(.canceledLogin)
-        let authenticationSessionFactory: StravaOAuth.AuthenticationFactory = { url, appSchemeName, callbackURLScheme, completionHandler  in
+        let authenticationSessionFactory: StravaOAuth.AuthenticationFactory = { url, callbackURLScheme, appSchemeName, completionHandler  in
             let mock = ASWebAuthenticationSessionMock(url: url, callbackURLScheme: appSchemeName, completionHandler: completionHandler)
             mock.code = code
             mock.error = error
