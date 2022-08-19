@@ -5,7 +5,7 @@ import Combine
 
 final class StravaUploadTests: XCTestCase {
     private var cancellable: AnyCancellable?
-    let stravaConfig = StravaConfig(client_id: "client", client_secret: "secret", redirect_uri: "travaartje://www.travaartje.net")
+    let stravaConfig = StravaConfig(client_id: "client", client_secret: "secret", redirect_uri: "travaartje://www.travaartje.net", redirect_schema_name: "travaartje")
     
     /// Test the upload of a file to Strava, and check that the upload is completed
     func testUpload() {

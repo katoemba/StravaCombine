@@ -17,6 +17,9 @@ public struct StravaConfig {
     public let client_id: String
     public let client_secret: String
     
+    // scheme name only
+    public let redirect_schema_name: String
+    
     public var fullAuthString: String {
         return scheme + "://" + host + authPath
     }
@@ -42,9 +45,10 @@ public struct StravaConfig {
         return URL(string: fullApiPath(endpoint))!
     }
 
-    public init(client_id: String, client_secret: String, redirect_uri: String) {
+    public init(client_id: String, client_secret: String, redirect_uri: String, redirect_schema_name: String) {
         self.client_id = client_id
         self.client_secret = client_secret
         self.redirect_uri = redirect_uri
+        self.redirect_schema_name = redirect_schema_name
     }
 }

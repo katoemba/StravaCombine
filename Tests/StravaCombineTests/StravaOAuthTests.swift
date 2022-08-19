@@ -6,7 +6,7 @@ import AuthenticationServices
 
 final class StravaOAuthTests: XCTestCase {
     private var cancellables = Set<AnyCancellable>()
-    let stravaConfig = StravaConfig(client_id: "client", client_secret: "secret", redirect_uri: "travaartje://www.travaartje.net")
+    let stravaConfig = StravaConfig(client_id: "client", client_secret: "secret", redirect_uri: "travaartje://www.travaartje.net", redirect_schema_name: "travaartje")
 
     override class func setUp() {
     }
@@ -14,8 +14,8 @@ final class StravaOAuthTests: XCTestCase {
     /// Test that a token is retrieved via web-authentication
     func testWebGetToken() {
         let code = "01020304050607"
-        let authenticationSessionFactory: StravaOAuth.AuthenticationFactory = { url, callbackURLScheme, completionHandler in
-            let mock = ASWebAuthenticationSessionMock(url: url, callbackURLScheme: callbackURLScheme, completionHandler: completionHandler)
+        let authenticationSessionFactory: StravaOAuth.AuthenticationFactory = { url, callbackURLScheme, appNameScheme, completionHandler  in
+            let mock = ASWebAuthenticationSessionMock(url: url, callbackURLScheme: appNameScheme, completionHandler: completionHandler)
             mock.code = code
 
             XCTAssertEqual(callbackURLScheme ?? "", self.stravaConfig.redirect_uri)
@@ -148,8 +148,8 @@ final class StravaOAuthTests: XCTestCase {
     func testCancelGetToken() {
         let code = "01020304050607"
         let error = ASWebAuthenticationSessionError(.canceledLogin)
-        let authenticationSessionFactory: StravaOAuth.AuthenticationFactory = { url, callbackURLScheme, completionHandler in
-            let mock = ASWebAuthenticationSessionMock(url: url, callbackURLScheme: callbackURLScheme, completionHandler: completionHandler)
+        let authenticationSessionFactory: StravaOAuth.AuthenticationFactory = { url, appSchemeName, callbackURLScheme, completionHandler  in
+            let mock = ASWebAuthenticationSessionMock(url: url, callbackURLScheme: appSchemeName, completionHandler: completionHandler)
             mock.code = code
             mock.error = error
             return mock
